@@ -1,10 +1,16 @@
 package com.github.ennoxhd.update.gradle.app;
 
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 class Config {
+	
+	public static final Set<String> excludedFolders =
+			Collections.unmodifiableSet(Set.of(".git", ".svn", ".gradle", "build", "bin", "gradle",
+					"src", "resources", ".settings", "tmp", ".github", "submodules"));
 
 	private boolean recursive;
 	private Path folder;
@@ -80,6 +86,6 @@ class Config {
 
 	@Override
 	public String toString() {
-		return "Config[recursive:" + isRecursive() + ",folder:" + getFolder() + ",version:" + getVersion() + "]";
+		return "Config[recursive:" + isRecursive() + ",folder:\"" + getFolder() + "\",version:\"" + getVersion() + "\"]";
 	}
 }

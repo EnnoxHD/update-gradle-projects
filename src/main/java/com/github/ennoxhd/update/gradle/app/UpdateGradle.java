@@ -1,7 +1,11 @@
 package com.github.ennoxhd.update.gradle.app;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 public class UpdateGradle {
 
@@ -15,9 +19,15 @@ public class UpdateGradle {
 		}
 		if(configOpt.isEmpty())
 			help();
-		System.out.println(configOpt.get());
-		
-		// TODO: implement
+		Config config = configOpt.get();
+		System.out.println("Running with " + config);
+		try {
+			// TODO: implement gradle check + update
+			walkFolders(config, System.out::println);
+		} catch (Exception e) {
+			e.printStackTrace();
+			help();
+		}
 		
 		//Notes:
 		//for all projects do
@@ -46,5 +56,24 @@ public class UpdateGradle {
 		final int versionArgIdx = folderArgIdx + 1;		
 		return Optional.ofNullable(
 				new Config(isRecursive, Path.of(args[folderArgIdx]), args[versionArgIdx]));
+	}
+	
+	private static void walkFolders(final Config config, final Consumer<Path> action) throws IOException {
+		Objects.requireNonNull(config);
+		Files.walk(config.getFolder(), 1)
+				.filter(path -> {
+					final String name = path.getFileName().toString();
+					return path.toFile().isDirectory() && !Config.excludedFolders.contains(name) && path != config.getFolder();
+				})
+				.forEach(path -> {
+					action.accept(path);
+					if(config.isRecursive()) {
+						try {
+							walkFolders(new Config(true, path, config.getVersion()), action);
+						} catch (IOException e) {
+							throw new RuntimeException(e);
+						}
+					}
+				});
 	}
 }
