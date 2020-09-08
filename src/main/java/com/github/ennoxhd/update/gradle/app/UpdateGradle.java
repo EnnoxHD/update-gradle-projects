@@ -5,7 +5,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 public class UpdateGradle {
 
@@ -22,18 +23,11 @@ public class UpdateGradle {
 		Config config = configOpt.get();
 		System.out.println("Running with " + config);
 		try {
-			// TODO: implement gradle check + update
-			walkFolders(config, System.out::println);
+			walkFolders(config, UpdateGradle::checkForGradleWrapper, UpdateGradle::updateGradle);
 		} catch (Exception e) {
 			e.printStackTrace();
 			help();
-		}
-		
-		//Notes:
-		//for all projects do
-		//.\gradlew.bat wrapper --gradle-version=6.6.1
-		//.\gradlew.bat tasks
-		
+		}	
 		System.exit(0);
 	}
 
@@ -58,7 +52,8 @@ public class UpdateGradle {
 				new Config(isRecursive, Path.of(args[folderArgIdx]), args[versionArgIdx]));
 	}
 	
-	private static void walkFolders(final Config config, final Consumer<Path> action) throws IOException {
+	// TODO: exclude this project from running the update process on its own
+	private static void walkFolders(final Config config, final Function<Path, Boolean> condition, final BiConsumer<Path, Boolean> conditionalAction) throws IOException {
 		Objects.requireNonNull(config);
 		Files.walk(config.getFolder(), 1)
 				.filter(path -> {
@@ -66,14 +61,42 @@ public class UpdateGradle {
 					return path.toFile().isDirectory() && !Config.excludedFolders.contains(name) && path != config.getFolder();
 				})
 				.forEach(path -> {
-					action.accept(path);
+					conditionalAction.accept(path, condition.apply(path));
 					if(config.isRecursive()) {
 						try {
-							walkFolders(new Config(true, path, config.getVersion()), action);
+							walkFolders(new Config(true, path, config.getVersion()), condition, conditionalAction);
 						} catch (IOException e) {
 							throw new RuntimeException(e);
 						}
 					}
 				});
+	}
+	 
+	private static boolean checkForGradleWrapper(final Path folder) {
+		try {
+			return folder != null
+					&& folder.toFile().isDirectory()
+					&& folder.resolve("gradlew").toFile().isFile()
+					&& folder.resolve("gradlew.bat").toFile().isFile()
+					&& folder.resolve("gradle").toFile().isDirectory()
+					&& folder.resolve("gradle/wrapper").toFile().isDirectory()
+					&& folder.resolve("gradle/wrapper/gradle-wrapper.jar").toFile().isFile()
+					&& folder.resolve("gradle/wrapper/gradle-wrapper.properties").toFile().isFile();
+		} catch(Exception e) {
+			return false;
+		}
+	}
+	
+	// TODO: implement
+	//Notes:
+	//for all projects do
+	//.\gradlew.bat wrapper --gradle-version=6.6.1
+	//.\gradlew.bat tasks
+	private static void updateGradle(final Path folder, final Boolean doUpdate) {
+		if(doUpdate) {
+			System.out.println("Updates: " + folder);
+		} else {
+			System.out.println("Doesn't update: " + folder);
+		}
 	}
 }
