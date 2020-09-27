@@ -86,6 +86,7 @@ class Config {
 
 	@Override
 	public String toString() {
-		return "Config[recursive:" + isRecursive() + ",folder:\"" + getFolder() + "\",version:\"" + getVersion() + "\"]";
+		return "Config[recursive:" + isRecursive() + ",folder:\"" + getFolder()
+				+ "\",version:\"" + getVersion() + "\"]";
 	}
 }

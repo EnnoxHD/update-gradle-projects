@@ -1,5 +1,6 @@
 package com.github.ennoxhd.update.gradle.app;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,7 +23,6 @@ public class UpdateGradle {
 		if(configOpt.isEmpty())
 			help();
 		Config config = configOpt.get();
-		System.out.println("Running with " + config);
 		try {
 			walkFolders(config, UpdateGradle::checkForGradleWrapper, UpdateGradle::updateGradle);
 		} catch (Exception e) {
@@ -53,15 +53,18 @@ public class UpdateGradle {
 				new Config(isRecursive, Path.of(args[folderArgIdx]), args[versionArgIdx]));
 	}
 	
-	private static void walkFolders(final Config config, final Function<Path, Boolean> condition, final BiConsumer<Path, Boolean> conditionalAction) throws IOException {
+	private static void walkFolders(final Config config, final Function<Path, Boolean> condition,
+			final BiConsumer<Config, Boolean> conditionalAction) throws IOException {
 		Objects.requireNonNull(config);
 		Files.walk(config.getFolder(), 1)
 				.filter(path -> {
 					final String name = path.getFileName().toString();
-					return path.toFile().isDirectory() && !Config.excludedFolders.contains(name) && path != config.getFolder();
+					return path.toFile().isDirectory()
+							&& !Config.excludedFolders.contains(name)
+							&& path != config.getFolder();
 				})
 				.forEach(path -> {
-					conditionalAction.accept(path, condition.apply(path));
+					conditionalAction.accept(new Config(false, path, config.getVersion()), condition.apply(path));
 					if(config.isRecursive()) {
 						try {
 							walkFolders(new Config(true, path, config.getVersion()), condition, conditionalAction);
@@ -89,16 +92,46 @@ public class UpdateGradle {
 		}
 	}
 	
-	// TODO: implement
-	//Notes:
-	//for all projects do
-	//.\gradlew.bat wrapper --gradle-version=6.6.1
-	//.\gradlew.bat tasks
-	private static void updateGradle(final Path folder, final Boolean doUpdate) {
+	private static void updateGradle(final Config config, final Boolean doUpdate) {
+		final String folder = config.getFolder().toAbsolutePath().normalize().toString();
 		if(doUpdate) {
-			System.out.println("Updates: " + folder);
+			System.out.println("Updating at: " + folder);
+			final File folderFile = new File(folder);
+			final String wrapper = isWindows() ? "gradlew.bat" : "gradlew";
+			boolean successful = true;
+			try {
+				final Process updateProcess = new ProcessBuilder(new String[] {
+						wrapper, "wrapper",
+						"--gradle-version", config.getVersion()
+				}).directory(folderFile).start();
+				updateProcess.waitFor();
+				checkExitCode(updateProcess.exitValue());
+				final Process versionProcess = new ProcessBuilder(new String[] {
+						wrapper,
+						"--version"
+				}).directory(folderFile).start();
+				versionProcess.waitFor();
+				checkExitCode(versionProcess.exitValue());
+			} catch (IOException | InterruptedException | RuntimeException e) {
+				successful = false;
+				System.out.println("             Went wrong with error:");
+				e.printStackTrace(System.out);
+			}
+			if(successful) System.out.println("             Done!");
 		} else {
-			System.out.println("Doesn't update: " + folder);
+			System.out.println("    Skipped: " + folder);
+		}
+	}
+	
+	private static boolean isWindows() {
+		final String osName = System.getProperty("os.name");
+		return osName != null
+				&& osName.toLowerCase().contains("windows");
+	}
+	
+	private static void checkExitCode(final int exitCode) throws RuntimeException {
+		if(exitCode != 0) {
+			throw new RuntimeException("Abnormal termination with exit code " + exitCode + "!");
 		}
 	}
 }
