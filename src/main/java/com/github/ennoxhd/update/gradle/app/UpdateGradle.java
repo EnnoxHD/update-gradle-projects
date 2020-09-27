@@ -3,6 +3,7 @@ package com.github.ennoxhd.update.gradle.app;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -52,7 +53,6 @@ public class UpdateGradle {
 				new Config(isRecursive, Path.of(args[folderArgIdx]), args[versionArgIdx]));
 	}
 	
-	// TODO: exclude this project from running the update process on its own
 	private static void walkFolders(final Config config, final Function<Path, Boolean> condition, final BiConsumer<Path, Boolean> conditionalAction) throws IOException {
 		Objects.requireNonNull(config);
 		Files.walk(config.getFolder(), 1)
@@ -76,6 +76,8 @@ public class UpdateGradle {
 		try {
 			return folder != null
 					&& folder.toFile().isDirectory()
+					&& !folder.toAbsolutePath().normalize().toString().equals(
+							Paths.get(System.getProperty("user.dir")).toAbsolutePath().toString())
 					&& folder.resolve("gradlew").toFile().isFile()
 					&& folder.resolve("gradlew.bat").toFile().isFile()
 					&& folder.resolve("gradle").toFile().isDirectory()
