@@ -4,9 +4,10 @@ plugins {
 }
 
 java {
-   sourceCompatibility = JavaVersion.VERSION_14
-   targetCompatibility = JavaVersion.VERSION_14
    modularity.inferModulePath = true
+   toolchain {
+      languageVersion = JavaLanguageVersion.of(15)
+   }
 }
 
 application {
@@ -14,18 +15,10 @@ application {
    mainClass  = 'com.github.ennoxhd.update.gradle.app.UpdateGradle'
 }
 
-repositories {
-   mavenCentral()
-}
-
-dependencies {
-
-}
-
 task debug (type: Exec) {
    group = 'application'
    description = 'Runs this project as a JVM application with debugging enabled (add program arguments with -Pargs="...")'
-   
+
    def baseCommand = 'run --debug-jvm'
    if(project.hasProperty('args')) {
       baseCommand += ' --args="' + project.getProperty('args') + '"'
